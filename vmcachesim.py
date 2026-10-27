@@ -8,6 +8,11 @@ COST_PER_KB = 0.07
 PAGE_SIZE = 4096
 NUM_PTE = 512 * 1024
 
+VALID_CACHE_KB = [8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192]
+VALID_BLOCK = [4, 8, 16, 32, 64]
+VALID_ASSOC = [1, 2, 4, 8, 16]
+VALID_PHYS_MB = [128, 256, 512, 1024, 2048, 4096]
+
 def parse_args():
     p = argparse.ArgumentParser(description="CS 3853 VM & Cache Simulator")
     p.add_argument("-s", type=int, required=True, help="cache size in KB")
@@ -20,8 +25,32 @@ def parse_args():
     p.add_argument("-f", action="append", required=True, help="trace file")
     return p.parse_args()
 
+def validate(args):
+    errors = []
+
+    if args.a not in VALID_ASSOC:
+        errors.append("associativity must be 1, 2, 4, 8, or 16")
+
+    if args.b not in VALID_BLOCK:
+        errors.append("block size must be 4, 8, 16, 32, or 64")
+
+    if args.p not in VALID_PHYS_MB:
+        errors.append("physical memory must be 128, 256, 512, 1024, 2048, or 4096")
+
+    if args.s not in VALID_CACHE_KB:
+        errors.append("cache size must be 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, or 8192")
+
+    args.r = args.r.upper()
+    if args.r not in ("RR, RND"):
+        errors.append("replacement policy must be RR or RND")
+    if errors:
+            for e in errors:
+                print("Error:", e, file=sys.stderr)
+            sys.exit(1)
+
 def main():
     args = parse_args()
+    validate(args)
     print(args)
 
 if __name__ == "__main__":
