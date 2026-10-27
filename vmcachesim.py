@@ -43,15 +43,44 @@ def validate(args):
     args.r = args.r.upper()
     if args.r not in ("RR, RND"):
         errors.append("replacement policy must be RR or RND")
+    
+    if not 0 <= args.u <= 100:
+        errors.append("percent used by OS must be between 0 and 100")
+   
+    if args.n == 0 or args.n < -1:
+        errors.append("instructions per time slice must be 1 or more, or -1 for max")
+
+#file reading errors
+    if not 1 <= len(args.f) <= 3:
+        errors.append("you must give 1 to 3 trace files")
+    for f in args.f:
+        if not os.path.isfile(f):
+            errors.append(f"trace file not found: {f}")
+    #converts cache and memory to bytes and compares size
+    if args.s * 1024 >= args.p * 1024 * 1024:
+        errors.append("cache must be smaller than physical memory")
+
     if errors:
             for e in errors:
                 print("Error:", e, file=sys.stderr)
             sys.exit(1)
 
+
+def cache_calc(args):
+    #add
+
+def memory_calc(args):
+    #add
+
+def print_output(args, cache, mem):
+    #add
+
 def main():
     args = parse_args()
     validate(args)
-    print(args)
+    cache = cache_calcs(args)
+    mem = memory_calcs(args)
+    print_output(args, cache, mem)
 
 if __name__ == "__main__":
     main()
