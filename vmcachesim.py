@@ -3,7 +3,7 @@ import math
 import os
 import sys
 
-TEAM = "XX"
+TEAM = "10"
 COST_PER_KB = 0.07
 PAGE_SIZE = 4096
 NUM_PTE = 512 * 1024
