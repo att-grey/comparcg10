@@ -41,7 +41,7 @@ def validate(args):
         errors.append("cache size must be 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, or 8192")
 
     args.r = args.r.upper()
-    if args.r not in ("RR, RND"):
+    if args.r not in ("RR", "RND"):
         errors.append("replacement policy must be RR or RND")
     
     if not 0 <= args.u <= 100:
@@ -70,7 +70,8 @@ def cache_calc(args):
     #add
 
 def memory_calc(args):
-    #add
+    #hayli will add
+    #testing this lol
 
 def print_output(args, cache, mem):
     #add
@@ -78,8 +79,8 @@ def print_output(args, cache, mem):
 def main():
     args = parse_args()
     validate(args)
-    cache = cache_calcs(args)
-    mem = memory_calcs(args)
+    cache = cache_calc(args)
+    mem = memory_calc(args)
     print_output(args, cache, mem)
 
 if __name__ == "__main__":
