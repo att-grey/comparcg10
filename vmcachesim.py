@@ -72,6 +72,7 @@ def cache_calc(args):
 def memory_calc(args):
     #hayli will add
     #testing this lol
+    pass
 
 def print_output(args, cache, mem):
     #add
