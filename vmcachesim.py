@@ -49,7 +49,6 @@ def validate(args):
    
     if args.n == 0 or args.n < -1:
         errors.append("instructions per time slice must be 1 or more, or -1 for max")
-
 #file reading errors
     if not 1 <= len(args.f) <= 3:
         errors.append("you must give 1 to 3 trace files")
@@ -67,15 +66,81 @@ def validate(args):
 
 
 def cache_calc(args):
-    #add
+    cache_bytes = args.s * 1024
+    phys_bytes = args.p * 1024 * 1024
+
+    total_blocks = cache_bytes // args.b
+    rows = total_blocks // args.a
+    offset_bits = int(math.log2(args.b))
+    index_bits = int(math.log2(rows))
+    phys_addr_bits = int(math.log2(phys_bytes))
+    tag_bits = phys_addr_bits - index_bits - offset_bits
+
+    # each block stores its tag plus 1 valid bit
+    overhead_bytes = total_blocks * (tag_bits + 1) // 8
+    impl_bytes = cache_bytes + overhead_bytes
+    impl_kb = impl_bytes / 1024
+    cost = impl_kb * COST_PER_KB
+
+    return {
+        "total_blocks": total_blocks,
+        "tag_bits": tag_bits,
+        "index_bits": index_bits,
+        "offset_bits": offset_bits,
+        "rows": rows,
+        "overhead_bytes": overhead_bytes,
+        "impl_bytes": impl_bytes,
+        "impl_kb": impl_kb,
+        "cost": cost,
+    }
 
 def memory_calc(args):
-    #hayli will add
-    #testing this lol
-    pass
+    #add
 
 def print_output(args, cache, mem):
-    #add
+    policy = "Round Robin" if args.r == "RR" else "Random"
+    time_slice = "max" if args.n == -1 else args.n
+
+    def line(label, value):
+        print(f"{label:<40}{value}")
+
+    print(f"Cache Simulator - CS 3853 - Team #{TEAM}")
+    print()
+    print("Trace File(s):")
+    for f in args.f:
+        print(f"\t{f}")
+
+    print()
+    print("***** Cache Input Parameters *****")
+    print()
+    line("Cache Size:", f"{args.s} KB")
+    line("Block Size:", f"{args.b} bytes")
+    line("Associativity:", args.a)
+    line("Replacement Policy:", policy)
+    line("Physical Memory:", f"{args.p} MB")
+    line("Percent Memory Used by System:", f"{args.u:.1f}%")
+    line("Instructions / Time Slice:", time_slice)
+
+    print()
+    print("***** Cache Calculated Values *****")
+    print()
+    line("Total # Blocks:", cache["total_blocks"])
+    line("Tag Size:", f"{cache['tag_bits']} bits")
+    line("Index Size:", f"{cache['index_bits']} bits")
+    line("Total # Rows:", cache["rows"])
+    line("Overhead Size:", f"{cache['overhead_bytes']} bytes")
+    line("Implementation Memory Size:", f"{cache['impl_kb']:.2f} KB ({cache['impl_bytes']} bytes)")
+    line("Cost:", f"${cache['cost']:.2f} @ ${COST_PER_KB:.2f} per KB")
+
+    # TODO once memory_calc is done
+    if mem is not None:
+        print()
+        print("***** Physical Memory Calculated Values *****")
+        print()
+        line("Number of Physical Pages:", mem["num_pages"])
+        line("Number of Pages for System:", mem["sys_pages"])
+        line("Size of Page Table Entry:", f"{mem['pte_bits']} bits")
+        line("Total RAM for Page Table(s):", f"{mem['pt_ram_bytes']} bytes")
 
 def main():
     args = parse_args()
