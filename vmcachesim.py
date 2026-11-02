@@ -95,7 +95,19 @@ def cache_calc(args):
     }
 
 def memory_calc(args):
-    #add
+    memory_bytes = args.p * 1024 * 1024
+    total_pages = memory_bytes // PAGE_SIZE
+    system_pages = int(total_pages * (args.u / 100))
+    page_number_bits = int(math.log2(total_pages))
+    pte_bits = page_number_bits + 1
+    pt_ram_bytes = (NUM_PTE * len(args.f) * pte_bits) // 8
+
+    return {
+        "num_pages": total_pages,
+        "sys_pages": system_pages,
+        "pte_bits": pte_bits,
+        "pt_ram_bytes": pt_ram_bytes
+    }
 
 def print_output(args, cache, mem):
     policy = "Round Robin" if args.r == "RR" else "Random"
