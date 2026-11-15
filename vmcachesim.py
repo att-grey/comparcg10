@@ -2,6 +2,7 @@ import argparse
 import math
 import os
 import sys
+import re
 
 TEAM = "10"
 COST_PER_KB = 0.07
@@ -95,7 +96,19 @@ def cache_calc(args):
     }
 
 def memory_calc(args):
-    #add
+    memory_bytes = args.p * 1024 * 1024
+    total_pages = memory_bytes // PAGE_SIZE
+    system_pages = int(total_pages * (args.u / 100))
+    page_number_bits = int(math.log2(total_pages))
+    pte_bits = page_number_bits + 1
+    pt_ram_bytes = (NUM_PTE * len(args.f) * pte_bits) // 8
+
+    return {
+        "num_pages": total_pages,
+        "sys_pages": system_pages,
+        "pte_bits": pte_bits,
+        "pt_ram_bytes": pt_ram_bytes
+    }
 
 def print_output(args, cache, mem):
     policy = "Round Robin" if args.r == "RR" else "Random"
@@ -141,6 +154,77 @@ def print_output(args, cache, mem):
         line("Number of Pages for System:", mem["sys_pages"])
         line("Size of Page Table Entry:", f"{mem['pte_bits']} bits")
         line("Total RAM for Page Table(s):", f"{mem['pt_ram_bytes']} bytes")
+
+def parse_trace(filename):
+    instructions = []
+
+    eip_pattern = re.compile(
+        r"^EIP\s*\(\s*(\d+)\s*\):\s*([0-9a-fA-F]{8})",
+        re.IGNORECASE
+    )
+
+    data_pattern = re.compile(
+        r"dstM:\s*([0-9a-fA-F]{8})\s+(\S+)\s+"
+        r"srcM:\s*([0-9a-fA-F]{8})\s+(\S+)",
+        re.IGNORECASE
+    )
+
+    with open(filename, "r") as trace_file:
+        #to ignore blank lines
+        lines = [line.strip() for line in trace_file if line.strip()]
+
+    if len(lines) % 2 != 0:
+        raise ValueError("Trace file has incomplete instruction.")
+
+    for i in range(0, len(lines), 2):
+        eip_line = lines[i]
+        data_line = lines[i + 1]
+
+        #extract instruction length and address
+        eip_match = eip_pattern.match(eip_line)
+
+        if not eip_match:
+            raise ValueError(
+                f"Invalid EIP format near line {i + 1}"
+            )
+
+        #instruction length is decimal
+        instruction_length = int(eip_match.group(1))
+
+        #address is hexadecimal
+        instruction_address = int(eip_match.group(2), 16)
+
+        if instruction_length <= 0:
+            raise ValueError("Instruction length must be positive.")
+
+        accesses = [
+            (instruction_address, instruction_length)
+        ]
+
+        data_match = data_pattern.search(data_line)
+
+        if not data_match:
+            raise ValueError(
+                f"Invalid memory access format near line {i + 2}"
+            )
+
+        dst_address = int(data_match.group(1), 16)
+        dst_data = data_match.group(2)
+
+        src_address = int(data_match.group(3), 16)
+        src_data = data_match.group(4)
+
+        #destination memory access
+        if dst_address != 0 and dst_data != "--------":
+            accesses.append((dst_address, 4))
+
+        #source memory access
+        if src_address != 0 and src_data != "--------":
+            accesses.append((src_address, 4))
+
+        instructions.append(accesses)
+
+    return instructions
 
 def main():
     args = parse_args()
