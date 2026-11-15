@@ -95,8 +95,7 @@ def cache_calc(args):
     }
 
 def memory_calc(args):
-    #hayli will add
-    return None
+    #add
 
 def print_output(args, cache, mem):
     policy = "Round Robin" if args.r == "RR" else "Random"
