@@ -3,6 +3,7 @@ import math
 import os
 import sys
 import re
+from collections import OrderedDict
 
 TEAM = "10"
 COST_PER_KB = 0.07
@@ -226,6 +227,87 @@ def parse_trace(filename):
 
     return instructions
 
+PAGE_BITS = 12
+
+vm = {}
+
+def vm_setup(mem, num_procs):
+    total_pages = mem["num_pages"]
+    system_pages = mem["sys_pages"]
+
+#table entry = valif bit + phy page num
+    vm["valid"] = [[0] * NUM_PTE for _ in range(num_procs)]
+    vm["ppn"] = [[0] * NUM_PTE for _ in range(num_procs)]
+
+# pages the os isn't using 
+    vm["free_pages"] = list(range(system_pages, total_pages))
+
+#phys page
+    vm["owner"] = {}
+
+#pages in use, least recent user first
+    vm["lru"] = OrderedDict()
+
+#page table entries each process has used
+    vm["used"] = [set() for _ in range(num_procs)]
+
+    vm["hits"] = 0
+    vm["from_free"] = 0
+    vm["faults"] = 0
+
+def invalidate_cache(phys_page):
+    #hold for m3
+    pass
+
+def map_page(pid, vpage, page):
+    #point process' page table entry at phy page
+
+    vm["valid"][pid][vpage] = 1
+    vm["ppn"][pid][vpage] = page
+    vm["owner"][page] = (pid, vpage)
+
+    # newest = most recently used
+    vm["lru"][page] = True
+    vm["used"][pid].add(vpage)
+
+def translate(pid, vaddr):
+    #map vitrual page add for a process, hit,free, fault
+    vpage = vaddr >> PAGE_BITS
+
+    #Hit
+    if vm["valid"][pid][vpage]:
+        page = vm["ppn"][pid][vpage]
+        vm["lru"].move_to_end(page)   # slide 28 use bit: mark as just used
+        vm["hits"] += 1
+        return "hit"
+
+    #Free
+    if vm["free_pages"]:
+        page = vm["free_pages"].pop()
+        map_page(pid, vpage, page)
+        vm["from_free"] += 1
+        return "free"
+
+    #Fault
+    page, _ = vm["lru"].popitem(last=False)
+    old_pid, old_vpage = vm["owner"][page]
+    vm["valid"][old_pid][old_vpage] = 0   # unmap it from the old owner
+    invalidate_cache(page)
+    map_page(pid, vpage, page)
+    vm["faults"] += 1
+    return "fault"
+
+def free_process(pid):
+    #when a trace ends, give all phy pages back
+    pages = [page for page, (owner_pid, _) in vm["owner"].items() if owner_pid == pid]
+    for page in pages:
+        _, vpage = vm["owner"][page]
+        vm["valid"][pid][vpage] = 0
+        del vm["owner"][page]
+        del vm["lru"][page]
+        invalidate_cache(page)
+        vm["free_pages"].append(page)
+
 def main():
     args = parse_args()
     validate(args)
@@ -233,5 +315,8 @@ def main():
     mem = memory_calc(args)
     print_output(args, cache, mem)
 
+    traces = [parse_trace(f) for f in args.f]
+    vm_setup(mem, len(traces))
+    
 if __name__ == "__main__":
     main()
