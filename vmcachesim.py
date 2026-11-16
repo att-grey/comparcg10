@@ -146,15 +146,13 @@ def print_output(args, cache, mem):
     line("Implementation Memory Size:", f"{cache['impl_kb']:.2f} KB ({cache['impl_bytes']} bytes)")
     line("Cost:", f"${cache['cost']:.2f} @ ${COST_PER_KB:.2f} per KB")
 
-    # TODO once memory_calc is done
-    if mem is not None:
-        print()
-        print("***** Physical Memory Calculated Values *****")
-        print()
-        line("Number of Physical Pages:", mem["num_pages"])
-        line("Number of Pages for System:", mem["sys_pages"])
-        line("Size of Page Table Entry:", f"{mem['pte_bits']} bits")
-        line("Total RAM for Page Table(s):", f"{mem['pt_ram_bytes']} bytes")
+    print()
+    print("***** Physical Memory Calculated Values *****")
+    print()
+    line("Number of Physical Pages:", mem["num_pages"])
+    line("Number of Pages for System:", mem["sys_pages"])
+    line("Size of Page Table Entry:", f"{mem['pte_bits']} bits")
+    line("Total RAM for Page Table(s):", f"{mem['pt_ram_bytes']} bytes")
 
 def parse_trace(filename):
     instructions = []
@@ -360,6 +358,50 @@ def run_simulation(args, traces):
 
     return stats, per_process_used
 
+def print_m2_results(stats, per_process_used, trace_names, mem):
+    #part 4: print the virtual memory results after the M1 output
+
+    def line(label, value, indent=""):
+        print(f"{indent}{label:<{40 - len(indent.expandtabs())}}{value}")
+
+    tab = "\t"
+    user_pages = mem["num_pages"] - mem["sys_pages"]
+
+    #every translated address is a hit, a page from free, or a fault
+    total = stats["hits"] + stats["from_free"] + stats["faults"]
+    if total != stats["mapped"]:
+        print(f"WARNING: hits + from free + faults = {total}, "
+              f"but virtual pages mapped = {stats['mapped']}", file=sys.stderr)
+
+    print()
+    print("***** VIRTUAL MEMORY SIMULATION RESULTS *****")
+    print()
+    line("Physical Pages Used By SYSTEM:", mem["sys_pages"])
+    line("Pages Available to User:", user_pages)
+    print()
+    line("Virtual Pages Mapped:", stats["mapped"])
+    print(f"{tab}------------------------------")
+    line("Page Table Hits:", stats["hits"], tab)
+    print()
+    line("Pages from Free:", stats["from_free"], tab)
+    print()
+    line("Total Page Faults:", stats["faults"], tab)
+    print()
+    print()
+    print("Page Table Usage Per Process:")
+    print("------------------------------")
+
+    for pid, name in enumerate(trace_names):
+        used = per_process_used[pid]
+        percent = used / NUM_PTE * 100
+        #unused entries * 19 bits each, in bytes, truncated
+        wasted = (NUM_PTE - used) * mem["pte_bits"] // 8
+
+        print(f"[{pid}] {name}:")
+        line("Used Page Table Entries:", f"{used} ({percent:5.2f}%)", tab)
+        line("Page Table Wasted:", f"{wasted} bytes", tab)
+        print()
+
 def main():
     args = parse_args()
     validate(args)
@@ -371,9 +413,7 @@ def main():
     vm_setup(mem, len(traces))
     stats, per_process_used = run_simulation(args, traces)
 
-    #part 4 prints these
-    if "print_m2_results" in globals():
-        print_m2_results(stats, per_process_used, args.f)
+    print_m2_results(stats, per_process_used, args.f, mem)
 
 if __name__ == "__main__":
     main()
