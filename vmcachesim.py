@@ -308,6 +308,58 @@ def free_process(pid):
         invalidate_cache(page)
         vm["free_pages"].append(page)
 
+def run_simulation(args, traces):
+    #part 3: round robin the processes, n instructions each, until all traces end
+
+    #instructions per slice, -1 means run the whole trace in one turn
+    slice_size = args.n
+
+    #next instruction each process still has to run
+    pos = [0] * len(traces)
+
+    #pids still in the rotation, in order
+    active = list(range(len(traces)))
+
+    #every address we hand to translate()
+    vm["mapped"] = 0
+
+    while active:
+        finished = []
+
+        for pid in active:
+            start = pos[pid]
+            if slice_size == -1:
+                stop = len(traces[pid])
+            else:
+                stop = min(start + slice_size, len(traces[pid]))
+
+            for instruction in traces[pid][start:stop]:
+                for address, _length in instruction:
+                    translate(pid, address)
+                    vm["mapped"] += 1
+
+            pos[pid] = stop
+
+            #trace is done, give its pages back and drop it from the rotation
+            if pos[pid] >= len(traces[pid]):
+                free_process(pid)
+                finished.append(pid)
+
+        for pid in finished:
+            active.remove(pid)
+
+    stats = {
+        "mapped": vm["mapped"],
+        "hits": vm["hits"],
+        "from_free": vm["from_free"],
+        "faults": vm["faults"],
+    }
+
+    #page table entries each process touched, for the wasted space numbers
+    per_process_used = [len(used) for used in vm["used"]]
+
+    return stats, per_process_used
+
 def main():
     args = parse_args()
     validate(args)
@@ -317,6 +369,11 @@ def main():
 
     traces = [parse_trace(f) for f in args.f]
     vm_setup(mem, len(traces))
-    
+    stats, per_process_used = run_simulation(args, traces)
+
+    #part 4 prints these
+    if "print_m2_results" in globals():
+        print_m2_results(stats, per_process_used, args.f)
+
 if __name__ == "__main__":
     main()
